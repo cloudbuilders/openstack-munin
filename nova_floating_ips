@@ -4,7 +4,7 @@
 #
 # To monitor a floating ips, link floating_ips to this file.
 # E.g.
-#    ln -s /usr/share/munin/plugins/nova_floating_ips /etc/munin/plugins/nova_floating_ips
+#    ln -s /usr/share/munin/plugins/nova_floating_ips /etc/munin/plugins/
 #
 # Needs following minimal configuration in plugin-conf.d/nova:
 #   [nova_*]
@@ -14,12 +14,14 @@
 #%# capabilities=autoconf
 #%# family=nova
 
+from nova import context
+from nova import db
+from nova import flags
+from nova import utils
 import sys
-import subprocess
 
 states = ['total', 'allocated', 'associated']
 
-subprocess.Popen(["touch", "/tmp/foobar"], stdout=subprocess.PIPE).communicate()[0]
 
 def print_config():
     global states
@@ -34,30 +36,37 @@ def print_config():
         print '%s.draw LINE2' % state
         print '%s.info %s IPs' % (state, state)
 
+
 def get_status():
     status = {}
-    for k in states: status[k] = 0
+    for k in states:
+        status[k] = 0
 
-    output = subprocess.Popen(["nova-manage", "floating", "list"], stdout=subprocess.PIPE).communicate()[0]
-    for l in output.strip().splitlines():
-        ip, project, instance = l.split("\t")
+    ctxt = context.get_admin_context()
+    floating_ips = db.floating_ip_get_all(ctxt)
+    for floating_ip in floating_ips:
         status['total'] += 1
-        if project != 'None':
-            status['allocated'] += 1
-        if instance != 'None':
+        if floating_ip['fixed_ip']:
             status['associated'] += 1
+        if floating_ip['project_id']:
+            status['allocated'] += 1
+
     return status
+
 
 def print_values():
     status = get_status()
     for (state, value) in status.iteritems():
         print "%s.value %s" % (state, value)
 
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == "config":
             print_config()
-        elif sys.argv[1]=="autoconf" :
+        elif sys.argv[1] == "autoconf":
             print "yes"
     else:
+        utils.default_flagfile()
+        flags.FLAGS(sys.argv)
         print_values()
