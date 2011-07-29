@@ -23,7 +23,7 @@ import sys
 
 def print_config():
     global states
-    print 'graph_title Nova VMs Launched'
+    print 'graph_title Nova Instances Launched'
     print 'graph_vlabel qty'
     print 'graph_args --base 1000 --lower-limit 0'
     print 'graph_category nova'
